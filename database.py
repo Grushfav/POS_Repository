@@ -25,7 +25,7 @@ class Database:
             date TIMESTAMP DEFAULT CURRENT_TIMESTAMP)''')
         
         self.conn.commit()
-
+    
     def add_product(self, name, price, quantity):
         self.cursor.execute('''INSERT INTO products (name, price, quantity)
                                VALUES (?, ?, ?)''', (name, price, quantity))
