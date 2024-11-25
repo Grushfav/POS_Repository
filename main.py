@@ -15,6 +15,7 @@ def main():
 
         if choice == "1":
             user = auth.login()
+        
             if user:
                 menu = MainMenu(user)
                 menu.show_menu()
