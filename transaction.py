@@ -1,7 +1,12 @@
 # transaction.py
 from email_alert import send_email
 from inventory import *
-
+from datetime import datetime
+import smtplib
+from email.mime.text import MIMEText
+from email.mime.multipart import MIMEMultipart
+from datetime import datetime
+import sqlite3
 
 
 class Transaction:
@@ -9,6 +14,7 @@ class Transaction:
         self.inventory = inventory
         self.cart = []
         self.alert_email = alert_email  # Inventory manager's email
+        self.transactions_log = []  
 
     def add_to_cart(self, product_id, quantity):
         product = self.inventory.get_product(product_id)
@@ -34,17 +40,45 @@ class Transaction:
         return change
 
     def complete_transaction(self):
-        # Update the inventory quantities
+        # Get the current time for the transaction
+        transaction_time = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        
+        print(f"\nTransaction Time: {transaction_time}")
+        print("="*50)
+        print(f"{'Item':<20}{'Unit Price':<12}{'Quantity':<10}{'Total Price':<12}")
+        print("="*50)
+
+        # Initialize total cost for the transaction
+        total_cost = 0
+
+        # Loop through the cart to print the details of each item
+        for product, quantity in self.cart:
+            name = product[1]  # Name of the product
+            price = product[2]  # Unit price of the product
+            total_price = price * quantity  # Total price for the product
+
+            # Print the item details
+            print(f"{name:<20}{price:<12}{quantity:<10}{total_price:<12.2f}")
+
+            # Add the total price to the overall total
+            total_cost += total_price
+
+        print("="*40)
+        print(f"{'Total Cost:':<32}{total_cost:.2f}")
+        print("="*40)
+
+        # Update inventory quantities
         for product, quantity in self.cart:
             new_quantity = product[3] - quantity
             self.inventory.update_product(product[0], quantity=new_quantity)
-        print("Transaction complete! Inventory updated.")
 
-        # Call print_receipt to display the transaction summary
-        self.print_receipt()
+        # Print receipt (already handled above with the formatted table)
+
+        # Check stock levels and send email alerts if necessary
         self.check_low_stock()
-        self.cart.clear()  # Clear the cart after the transaction
 
+        # Clear the cart
+        self.cart.clear()
     def check_low_stock(self):
         low_stock_products = []
         for product in self.inventory.get_all_products():
@@ -67,6 +101,7 @@ class Transaction:
             print("Low stock alert email sent successfully.")
         except Exception as e:
             print(f"Failed to send low stock alert: {e}")
+
     def print_receipt(self):
         print("\n--- Transaction Summary ---")
         print(f"{'Product':<15} {'Quantity':<10} {'Cost':<10}")
@@ -78,3 +113,101 @@ class Transaction:
             print(f"{product[1]:<15} {quantity:<10} ${cost:<10.2f}")
         print("-" * 35)
         print(f"Total: ${total:.2f}")
+
+    def record_transaction(self, cart):
+        """Record each transaction for later reporting"""
+        transaction_time = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        total_revenue = 0
+
+        for product, quantity in cart:
+            name = product[1]
+            price = product[2]
+            total_price = price * quantity
+            total_revenue += total_price
+
+            # Add to the transactions log
+            self.transactions_log.append({
+                'time': transaction_time,
+                'product': name,
+                'quantity': quantity,
+                'total_price': total_price
+            })
+
+        return total_revenue
+
+    def generate_daily_report(self):
+        """Generate daily sales report"""
+        report = f"Daily Sales Report - {datetime.now().strftime('%Y-%m-%d')}\n"
+        report += "=" * 50 + "\n"
+        report += f"{'Item':<20}{'Quantity Sold':<15}{'Revenue Generated':<15}\n"
+        report += "=" * 50 + "\n"
+
+        # Calculate total sales and revenue per item
+        item_sales = {}
+        total_revenue = 0
+
+        for transaction in self.transactions_log:
+            item = transaction['product']
+            if item not in item_sales:
+                item_sales[item] = {'quantity': 0, 'revenue': 0}
+            item_sales[item]['quantity'] += transaction['quantity']
+            item_sales[item]['revenue'] += transaction['total_price']
+            total_revenue += transaction['total_price']
+
+      
+        for item, data in item_sales.items():
+            report += f"{item:<20}{data['quantity']:<15}{data['revenue']:<15.2f}\n"
+
+        report += "=" * 50 + "\n"
+        report += f"Total Revenue for the Day: {total_revenue:.2f}\n"
+        report += "=" * 50 + "\n\n"
+
+        # Get low stock items
+        low_stock_items = self.inventory.get_low_stock_items(threshold=12)
+        if low_stock_items:
+            report += "Low Stock Items Report:\n"
+            report += "=" * 50 + "\n"
+            report += f"{'Item':<20}{'Current Stock':<15}\n"
+            report += "=" * 50 + "\n"
+            for item in low_stock_items:
+                report += f"{item[1]:<20}{item[3]:<15}\n"
+            report += "=" * 50 + "\n"
+        else:
+            report += "No low stock items.\n"
+        
+        return report
+
+    def send_report_by_email(self, report):
+        """Send the generated report by email"""
+        try:
+            # Setup email
+            message = MIMEMultipart()
+            message['From'] = 'your-email@gmail.com'
+            message['To'] = self.alert_email
+            message['Subject'] = 'Daily Sales and Inventory Report'
+            message.attach(MIMEText(report, 'plain'))
+
+            # Send the email using SMTP
+            with smtplib.SMTP('smtp.gmail.com', 587) as server:
+                server.starttls()
+                server.login('your-email@gmail.com', 'your-password')
+                server.sendmail('your-email@gmail.com', self.alert_email, message.as_string())
+
+            print("Report successfully sent!")
+        except Exception as e:
+            print(f"Failed to send email: {e}")
+
+    def generate_and_send_report(self, cart):
+        """Complete flow to generate and send report"""
+        # Record the transaction
+        total_revenue = self.record_transaction(cart)
+
+        # Generate the daily report
+        report = self.generate_daily_report()
+
+        # Send the report via email
+        self.send_report_by_email(report)
+
+        # Optionally, you can also print the report to the screen
+        print(report)
+

@@ -18,7 +18,8 @@ class MainMenu:
             print("2. Inventory (Add/Update/Remove Product)")
             if self.user.position == "inventory manager":
                 print("3. Set Notification Alert (Low Stock)")
-            print("4. Exit")
+            print("4. Generate Report")
+            print("5. Exit")
 
             choice = input("Select an option: ")
 
@@ -29,6 +30,8 @@ class MainMenu:
             elif choice == "3" and self.user.position == "inventory manager":
                 self.set_notification_alert()
             elif choice == "4":
+                self.generate_daily_report()  # Handle report generation here
+            elif choice == "5":
                 print("Exiting...")
                 self.inventory.close()  # Close the inventory database connection
                 break
@@ -167,6 +170,20 @@ class MainMenu:
             subject = "Low Stock Alert"
             send_email(manager_email, subject, message)
 
+    def generate_daily_report(self):
+        """Handle the option to generate and email the daily report"""
+        print("Generating and sending daily report...")
+
+        # Generate the daily report
+        report = self.transaction_report.generate_daily_report()
+
+        # Send the report via email
+        self.transaction_report.send_report_by_email(report)
+
+        # Optionally, print the report to the console as well
+        print("\nDaily Report Generated and Sent!")
+        print(report)  # Print to screen
+
     def complete_transaction(self):
         total = self.transaction.calculate_total()
         print(f"Total: ${total:.2f}")
@@ -179,3 +196,10 @@ class MainMenu:
         else:
             print(f"Change: ${change:.2f}")
             self.transaction.complete_transaction()
+
+    def get_cart(self):
+        # A simple cart for the example. You can expand this to allow user input.
+        product1 = self.inventory.get_product(1)  # Get product by ID
+        product2 = self.inventory.get_product(2)
+        product3 = self.inventory.get_product(3)
+        return [(product1, 3), (product2, 5), (product3, 2)]  # Example cart
