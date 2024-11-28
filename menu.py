@@ -30,7 +30,7 @@ class MainMenu:
             elif choice == "3" and self.user.position == "inventory manager":
                 self.set_notification_alert()
             elif choice == "4":
-                self.generate_daily_report()  # Handle report generation here
+                self.generate_report()  # Handle report generation here
             elif choice == "5":
                 print("Exiting...")
                 self.inventory.close()  # Close the inventory database connection
@@ -170,19 +170,14 @@ class MainMenu:
             subject = "Low Stock Alert"
             send_email(manager_email, subject, message)
 
-    def generate_daily_report(self):
-        """Handle the option to generate and email the daily report"""
-        print("Generating and sending daily report...")
+    def generate_report(self):
+        report = self.transaction.generate_daily_report()
+        print("\n--- Daily Report ---")
+        print(report)
 
-        # Generate the daily report
-        report = self.transaction_report.generate_daily_report()
-
-        # Send the report via email
-        self.transaction_report.send_report_by_email(report)
-
-        # Optionally, print the report to the console as well
-        print("\nDaily Report Generated and Sent!")
-        print(report)  # Print to screen
+        send_report = input("Would you like to email the report? (y/n): ")
+        if send_report.lower() == 'y':
+            self.transaction.send_report_by_email(report)
 
     def complete_transaction(self):
         total = self.transaction.calculate_total()

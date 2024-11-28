@@ -1,12 +1,11 @@
-# transaction.py
 from email_alert import send_email
 from inventory import *
 from datetime import datetime
 import smtplib
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
-from datetime import datetime
 import sqlite3
+import os
 
 
 class Transaction:
@@ -72,13 +71,12 @@ class Transaction:
             new_quantity = product[3] - quantity
             self.inventory.update_product(product[0], quantity=new_quantity)
 
-        # Print receipt (already handled above with the formatted table)
-
         # Check stock levels and send email alerts if necessary
         self.check_low_stock()
 
         # Clear the cart
         self.cart.clear()
+
     def check_low_stock(self):
         low_stock_products = []
         for product in self.inventory.get_all_products():
@@ -101,18 +99,6 @@ class Transaction:
             print("Low stock alert email sent successfully.")
         except Exception as e:
             print(f"Failed to send low stock alert: {e}")
-
-    def print_receipt(self):
-        print("\n--- Transaction Summary ---")
-        print(f"{'Product':<15} {'Quantity':<10} {'Cost':<10}")
-        print("-" * 35)
-        total = 0
-        for product, quantity in self.cart:
-            cost = product[2] * quantity
-            total += cost
-            print(f"{product[1]:<15} {quantity:<10} ${cost:<10.2f}")
-        print("-" * 35)
-        print(f"Total: ${total:.2f}")
 
     def record_transaction(self, cart):
         """Record each transaction for later reporting"""
@@ -154,7 +140,6 @@ class Transaction:
             item_sales[item]['revenue'] += transaction['total_price']
             total_revenue += transaction['total_price']
 
-      
         for item, data in item_sales.items():
             report += f"{item:<20}{data['quantity']:<15}{data['revenue']:<15.2f}\n"
 
@@ -179,35 +164,24 @@ class Transaction:
 
     def send_report_by_email(self, report):
         """Send the generated report by email"""
+        from_email = "testgavseaton@gmail.com"  # Replace with your email
+        from_password = "ewoi dsig wfen jkjz"  # Replace with your email password
         try:
             # Setup email
-            message = MIMEMultipart()
-            message['From'] = 'your-email@gmail.com'
-            message['To'] = self.alert_email
-            message['Subject'] = 'Daily Sales and Inventory Report'
-            message.attach(MIMEText(report, 'plain'))
-
-            # Send the email using SMTP
-            with smtplib.SMTP('smtp.gmail.com', 587) as server:
-                server.starttls()
-                server.login('your-email@gmail.com', 'your-password')
-                server.sendmail('your-email@gmail.com', self.alert_email, message.as_string())
+            # Create email
+            msg = MIMEMultipart()
+            msg['From'] = from_email
+            msg['To'] = self.alert_email
+            msg['Subject'] = "Daily Report"
+            msg.attach(MIMEText(report, 'plain'))
+            
+            server = smtplib.SMTP('smtp.gmail.com', 587)
+            server.starttls()
+            server.login(from_email, from_password)
+            server.send_message(msg)
+            server.quit()
 
             print("Report successfully sent!")
         except Exception as e:
             print(f"Failed to send email: {e}")
-
-    def generate_and_send_report(self, cart):
-        """Complete flow to generate and send report"""
-        # Record the transaction
-        total_revenue = self.record_transaction(cart)
-
-        # Generate the daily report
-        report = self.generate_daily_report()
-
-        # Send the report via email
-        self.send_report_by_email(report)
-
-        # Optionally, you can also print the report to the screen
-        print(report)
 
