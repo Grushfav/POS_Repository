@@ -74,6 +74,8 @@ class Transaction:
         # Check stock levels and send email alerts if necessary
         self.check_low_stock()
 
+        self.record_transaction(self.cart)
+
         # Clear the cart
         self.cart.clear()
 
